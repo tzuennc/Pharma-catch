@@ -1,0 +1,1820 @@
+<!DOCTYPE html>
+<html lang="zh-TW" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>藥物接接樂 (Pharma Catch) - SDG 3.5 藥物安全守護戰</title>
+  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+  <style>
+    @keyframes pulse-slow {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.85; transform: scale(1.03); }
+    }
+    @keyframes danger-glow {
+      0%, 100% { box-shadow: 0 0 15px rgba(239, 68, 68, 0.4); }
+      50% { box-shadow: 0 0 30px rgba(239, 68, 68, 0.8); }
+    }
+    .danger-border-pulse {
+      animation: danger-glow 1.2s infinite;
+    }
+    /* Custom Scrollbars */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(15, 23, 42, 0.6);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(99, 102, 241, 0.5);
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(99, 102, 241, 0.8);
+    }
+    /* Touch actions for canvas */
+    canvas {
+      touch-action: none;
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans select-none antialiased overflow-x-hidden">
+
+  <!-- Top SDG 3.5 Header / Navigation -->
+  <header class="w-full border-b border-slate-800/80 bg-slate-900/80 backdrop-blur-md sticky top-0 z-40 px-4 py-2.5">
+    <div class="max-w-6xl mx-auto flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-400 via-teal-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-emerald-500/20 font-bold text-white text-base">
+          🧑‍⚕️
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="font-extrabold text-sm sm:text-base tracking-wide bg-gradient-to-r from-emerald-400 via-teal-300 to-indigo-300 bg-clip-text text-transparent">
+              藥物接接樂 · Pharma Catch
+            </h1>
+            <span class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+              SDG 3.5 物質濫用防制
+            </span>
+          </div>
+          <p class="text-[11px] text-slate-400 hidden sm:block">
+            控制藥師小人伸出雙手接藥，避開毒品、有害酒精與致命相剋藥物
+          </p>
+        </div>
+      </div>
+
+      <!-- Quick Action Buttons -->
+      <div class="flex items-center gap-2">
+        <button id="btn-leaderboard" class="px-2.5 py-1.5 rounded-lg bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-300 active:scale-95 transition text-xs font-medium border border-indigo-500/40 flex items-center gap-1.5 shadow-sm">
+          <span>🏆</span>
+          <span class="hidden sm:inline">前10名排行榜</span>
+          <span class="sm:hidden">排行</span>
+        </button>
+        <button id="btn-handbook" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 active:scale-95 transition text-xs font-medium text-slate-200 border border-slate-700/60 flex items-center gap-1.5 shadow-sm">
+          <span>📖</span>
+          <span class="hidden sm:inline">藥物交互作用圖鑑</span>
+          <span class="sm:hidden">圖鑑</span>
+        </button>
+        <button id="btn-audio-toggle" class="p-1.5 sm:px-2.5 sm:py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 active:scale-95 transition text-xs text-slate-200 border border-slate-700/60 flex items-center gap-1">
+          <span id="audio-icon">🔊</span>
+          <span id="audio-text" class="hidden sm:inline text-xs">音效 開</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Game Container -->
+  <main class="flex-1 max-w-6xl w-full mx-auto p-2 sm:p-4 grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
+    
+    <!-- Left Column: The Interactive Game Stage -->
+    <div class="lg:col-span-8 flex flex-col items-center w-full">
+      
+      <!-- Top In-Game HUD: Player Name, Score, Warnings, High Score -->
+      <div class="w-full max-w-[540px] bg-slate-900/90 border border-slate-800 rounded-t-2xl p-3 flex items-center justify-between shadow-xl backdrop-blur-md">
+        <!-- Player & Score -->
+        <div class="flex flex-col">
+          <span class="text-[10px] font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-1">
+            <span>🧑‍⚕️</span> <span id="hud-player-name" class="text-emerald-300 font-bold max-w-[120px] truncate">健康守護者</span>
+          </span>
+          <span id="hud-score" class="text-2xl font-black tracking-tight text-emerald-400 font-mono tabular-nums">0</span>
+        </div>
+
+        <!-- Strike / Attention warning counter (2 strikes = Game Over) -->
+        <div class="flex flex-col items-center">
+          <span class="text-[10px] font-semibold uppercase tracking-wider text-amber-400/90 flex items-center gap-1">
+            <span>⚠️</span> 注意成分失誤
+          </span>
+          <div class="flex items-center gap-1.5 mt-1">
+            <span id="strike-1" class="w-6 h-2 rounded-full bg-slate-800 border border-slate-700 transition-colors"></span>
+            <span id="strike-2" class="w-6 h-2 rounded-full bg-slate-800 border border-slate-700 transition-colors"></span>
+            <span class="text-[11px] text-slate-400 font-mono ml-1 font-bold"><span id="hud-strikes">0</span>/2</span>
+          </div>
+        </div>
+
+        <!-- High Score -->
+        <div class="flex flex-col items-end">
+          <span class="text-[10px] font-semibold uppercase tracking-wider text-slate-400">個人最佳</span>
+          <span id="hud-highscore" class="text-lg font-bold font-mono text-indigo-300">0</span>
+        </div>
+      </div>
+
+      <!-- Canvas Area Container -->
+      <div class="relative w-full max-w-[540px] aspect-[9/14] sm:aspect-[9/13] max-h-[640px] bg-slate-950 border-x border-slate-800 shadow-2xl overflow-hidden group">
+        <canvas id="game-canvas" class="w-full h-full block cursor-grab active:cursor-grabbing"></canvas>
+
+        <!-- Danger Screen Flash Overlay -->
+        <div id="danger-flash" class="absolute inset-0 pointer-events-none bg-red-600/30 opacity-0 transition-opacity duration-150 z-20"></div>
+
+        <!-- Start Screen Overlay (With Nickname Input) -->
+        <div id="start-overlay" class="absolute inset-0 bg-slate-950/90 backdrop-blur-md z-30 flex flex-col items-center justify-center p-6 text-center">
+          <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-emerald-500 via-teal-400 to-indigo-500 flex items-center justify-center shadow-xl shadow-teal-500/30 text-3xl mb-3 animate-bounce">
+            🧑‍⚕️
+          </div>
+          <h2 class="text-2xl font-black bg-gradient-to-r from-emerald-300 via-teal-200 to-indigo-300 bg-clip-text text-transparent mb-1">
+            藥物接接樂 · Pharma Catch
+          </h2>
+          <p class="text-xs text-slate-300 max-w-xs mb-3 leading-relaxed">
+            操作藥師小人伸出雙手接住安全藥物，藥效持續 8 秒。代謝期間<span class="text-rose-400 font-bold">嚴禁碰觸相剋物質、酒精或非法毒品！</span>
+          </p>
+
+          <!-- Nickname Input Field -->
+          <div class="w-full max-w-xs mb-3 text-left">
+            <label for="input-nickname" class="block text-xs font-bold text-emerald-400 mb-1 flex items-center justify-between">
+              <span>👤 請輸入您的遊玩暱稱：</span>
+              <span class="text-[10px] text-slate-400 font-normal">進前10名可登榜</span>
+            </label>
+            <div class="relative">
+              <input id="input-nickname" type="text" maxlength="10" value="健康守護者" placeholder="例如：藥物安全衛士" class="w-full px-3 py-2 text-sm bg-slate-900 border border-slate-700 rounded-xl text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-400 font-medium transition" />
+              <span class="absolute right-3 top-2.5 text-xs text-slate-500">🧑‍⚕️</span>
+            </div>
+          </div>
+
+          <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-2.5 w-full max-w-xs text-left mb-4 space-y-1 text-xs">
+            <div class="flex items-center gap-2 text-emerald-400">
+              <span>✅</span> <span>接取保健品(+5)與一般/管制藥物(+10)</span>
+            </div>
+            <div class="flex items-center gap-2 text-rose-400">
+              <span>🚨</span> <span>致命高風險組合 (如安眠藥+酒) <b>直接失敗</b></span>
+            </div>
+            <div class="flex items-center gap-2 text-amber-400">
+              <span>⚠️</span> <span>注意成分 (如感冒藥+止痛藥) <b>累積2次失敗</b></span>
+            </div>
+            <div class="flex items-center gap-2 text-purple-400">
+              <span>☠️</span> <span>接取非法毒品 <b>立即淘汰</b></span>
+            </div>
+          </div>
+
+          <button id="btn-start-game" class="w-full max-w-xs py-3 px-6 rounded-xl font-bold text-sm bg-gradient-to-r from-emerald-500 via-teal-500 to-indigo-600 text-white shadow-lg shadow-teal-500/25 hover:brightness-110 active:scale-95 transition flex items-center justify-center gap-2">
+            <span>🚀</span> <span>開始守護挑戰</span>
+          </button>
+
+          <div class="flex items-center gap-4 mt-3 text-[11px] text-slate-400">
+            <span>鍵盤 ⬅️ ➡️ / A D</span>
+            <span>·</span>
+            <span>滑鼠拖曳 / 觸控滑動</span>
+          </div>
+        </div>
+
+        <!-- Game Over Screen Overlay (With Leaderboard Result) -->
+        <div id="gameover-overlay" class="absolute inset-0 bg-slate-950/95 backdrop-blur-lg z-30 flex flex-col items-center justify-center p-6 text-center hidden">
+          <div id="gameover-badge" class="w-14 h-14 rounded-2xl bg-rose-500/20 border border-rose-500/40 text-rose-400 flex items-center justify-center text-3xl mb-2 shadow-lg shadow-rose-500/20">
+            ☠️
+          </div>
+          <h3 id="gameover-title" class="text-xl font-extrabold text-rose-400 mb-1">
+            遊戲結束 · 致命交互作用
+          </h3>
+          <p id="gameover-reason-title" class="text-xs font-bold text-amber-300 mb-2">
+            觸發高風險禁忌組合
+          </p>
+
+          <!-- Top 100 Leaderboard Status Card -->
+          <div id="gameover-rank-box" class="bg-indigo-950/40 border border-indigo-500/40 rounded-xl p-2.5 w-full max-w-xs mb-3 text-left">
+            <div class="flex items-center justify-between text-xs mb-1">
+              <span class="font-bold text-indigo-300 flex items-center gap-1">
+                <span>🏆</span> 排行榜結算：
+              </span>
+              <span id="gameover-rank-tag" class="text-[10px] px-2 py-0.5 rounded font-bold bg-emerald-500/20 text-emerald-300">
+                核算中...
+              </span>
+            </div>
+            <p id="gameover-rank-desc" class="text-[11px] text-slate-300">
+              正在比對全服數據...
+            </p>
+          </div>
+
+          <!-- Medical Cause & SDG Education Card -->
+          <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-3 w-full max-w-xs text-left mb-4 space-y-1.5">
+            <div class="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">病理機制與醫學衛教</div>
+            <p id="gameover-medical-desc" class="text-xs text-slate-200 leading-relaxed">
+              鎮靜安眠藥與酒精同時存在體內時，兩者均為中樞神經抑制劑，具有強烈加乘協同作用，極易導致呼吸中樞抑制、意識昏迷甚至猝死。
+            </p>
+            <div class="pt-2 border-t border-slate-800/80 flex items-center justify-between text-xs">
+              <span class="text-slate-400">本次得分：</span>
+              <span id="gameover-final-score" class="font-mono font-black text-emerald-400 text-base">0</span>
+            </div>
+            <div class="flex items-center justify-between text-xs">
+              <span class="text-slate-400">存活時間：</span>
+              <span id="gameover-survival-time" class="font-mono text-slate-300">0 秒</span>
+            </div>
+          </div>
+
+          <div class="w-full max-w-xs flex gap-2">
+            <button id="btn-restart-game" class="flex-1 py-2.5 px-3 rounded-xl font-bold text-xs bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-md hover:brightness-110 active:scale-95 transition flex items-center justify-center gap-1">
+              <span>🔄</span> <span>再次挑戰</span>
+            </button>
+            <button id="btn-gameover-board" class="py-2.5 px-3 rounded-xl font-medium text-xs bg-indigo-900/60 hover:bg-indigo-800 text-indigo-200 border border-indigo-700 active:scale-95 transition flex items-center justify-center gap-1">
+              <span>🏆</span> <span>排行榜</span>
+            </button>
+            <button id="btn-gameover-handbook" class="py-2.5 px-3 rounded-xl font-medium text-xs bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 active:scale-95 transition flex items-center justify-center gap-1">
+              <span>📖</span> <span>圖鑑</span>
+            </button>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Mobile Touch Controls Bar -->
+      <div class="w-full max-w-[540px] bg-slate-900/90 border border-slate-800 rounded-b-2xl p-2.5 flex items-center justify-between gap-3 shadow-xl backdrop-blur-md">
+        <button id="btn-move-left" class="flex-1 py-3 bg-slate-800 hover:bg-slate-700 active:bg-slate-600 rounded-xl text-lg font-bold text-slate-200 border border-slate-700 flex items-center justify-center select-none active:scale-[0.98] transition">
+          ◀ 向左移動
+        </button>
+        <button id="btn-pause-game" class="px-4 py-3 bg-slate-800/80 hover:bg-slate-700 rounded-xl text-xs font-semibold text-slate-400 border border-slate-700 flex items-center justify-center active:scale-95 transition">
+          ⏸ 暫停
+        </button>
+        <button id="btn-move-right" class="flex-1 py-3 bg-slate-800 hover:bg-slate-700 active:bg-slate-600 rounded-xl text-lg font-bold text-slate-200 border border-slate-700 flex items-center justify-center select-none active:scale-[0.98] transition">
+          向右移動 ▶
+        </button>
+      </div>
+
+    </div>
+
+    <!-- Right Column: Real-Time Metabolic Monitor & Educational Reference -->
+    <div class="lg:col-span-4 w-full flex flex-col gap-4">
+      
+      <!-- Card 1: Active Metabolic Monitor (Body Status) -->
+      <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 shadow-xl backdrop-blur-sm">
+        <div class="flex items-center justify-between mb-3">
+          <div class="flex items-center gap-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping"></span>
+            <h3 class="text-xs font-bold uppercase tracking-wider text-slate-200">
+              體內代謝監測儀 (Active Drugs)
+            </h3>
+          </div>
+          <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700">
+            代謝週期: 8s
+          </span>
+        </div>
+
+        <p class="text-[11px] text-slate-400 mb-3">
+          目前在體內發揮藥效的藥物。在倒數結束前，請嚴防接取衝突物質：
+        </p>
+
+        <!-- Active Substance List Container -->
+        <div id="active-drugs-container" class="space-y-2 min-h-[90px] flex flex-col justify-center">
+          <div class="text-center py-4 text-xs text-slate-500 border border-dashed border-slate-800 rounded-xl">
+            體內無作用中藥物，狀態良好 ✨
+          </div>
+        </div>
+
+        <!-- Conflict Radar Indicator -->
+        <div id="conflict-radar" class="mt-3 p-2.5 rounded-xl bg-slate-950/60 border border-slate-800/80 text-xs hidden">
+          <div class="flex items-center gap-1.5 text-rose-400 font-bold mb-1">
+            <span>🚨</span> <span>即時雷達預警：</span>
+          </div>
+          <p id="conflict-radar-text" class="text-[11px] text-slate-300 leading-tight">
+            空中出現相剋物質，請務必避開！
+          </p>
+        </div>
+      </div>
+
+      <!-- Card 2: Quick Danger Reference Cheat Sheet -->
+      <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 shadow-xl backdrop-blur-sm">
+        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-300 mb-2.5 flex items-center gap-1.5">
+          <span>⚡</span> <span>藥物危險交互作用速查</span>
+        </h3>
+        
+        <div class="space-y-2 text-xs">
+          <!-- High risk badge -->
+          <div class="p-2 rounded-xl bg-rose-500/10 border border-rose-500/20">
+            <div class="font-bold text-rose-400 text-[11px] flex items-center justify-between mb-1">
+              <span>🚨 致命高風險 (直接 Game Over)</span>
+              <span class="text-[9px] px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-300">致死/呼吸抑制</span>
+            </div>
+            <div class="grid grid-cols-2 gap-1 text-[11px] text-slate-300">
+              <div>• 安眠藥 + 酒精</div>
+              <div>• 嗎啡 + 酒精</div>
+              <div>• 嗎啡 + 安眠藥</div>
+              <div>• 氯胺酮 + 酒精</div>
+              <div>• 氯胺酮 + 安眠藥</div>
+              <div>• 氯胺酮 + 嗎啡</div>
+            </div>
+          </div>
+
+          <!-- Attention badge -->
+          <div class="p-2 rounded-xl bg-amber-500/10 border border-amber-500/20">
+            <div class="font-bold text-amber-400 text-[11px] flex items-center justify-between mb-1">
+              <span>⚠️ 注意成分 (累計2次 Game Over)</span>
+              <span class="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300">肝腎損傷/出血</span>
+            </div>
+            <div class="space-y-0.5 text-[11px] text-slate-300">
+              <div>• 感冒藥 + 止痛藥 (乙醯胺酚重複超標)</div>
+              <div>• 感冒藥 + 酒精 (抗組織胺加重嗜睡傷肝)</div>
+              <div>• 止痛藥 + 酒精 (消化道出血與肝毒性)</div>
+            </div>
+          </div>
+
+          <!-- Illicit drug badge -->
+          <div class="p-2 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-between">
+            <div class="text-[11px] font-bold text-purple-300 flex items-center gap-1">
+              <span>☠️ 非法毒品 (絕對禁物)</span>
+            </div>
+            <span class="text-[10px] text-purple-400 font-semibold">碰觸立即失敗</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card 3: SDG 3.5 Goal Statement & Hotlines -->
+      <div class="bg-gradient-to-br from-slate-900 to-indigo-950/40 border border-indigo-500/20 rounded-2xl p-4 shadow-xl text-xs">
+        <div class="flex items-center gap-2 mb-2">
+          <div class="w-6 h-6 rounded-md bg-indigo-500/20 text-indigo-400 flex items-center justify-center font-bold text-xs">
+            3
+          </div>
+          <h4 class="font-bold text-indigo-300 text-xs">SDG 3.5 核心目標宣導</h4>
+        </div>
+        <p class="text-[11px] text-slate-300 leading-relaxed mb-3">
+          強化對物質濫用（包括麻醉藥品濫用和有害使用酒精）的預防和治療。用藥應遵照醫囑，絕不併服酒精與來路不明藥品，拒絕毒品誘惑。
+        </p>
+        <div class="bg-slate-950/60 rounded-xl p-2.5 border border-slate-800 text-[11px] text-slate-400 space-y-1">
+          <div class="flex justify-between">
+            <span>📞 毒品防制諮詢專線：</span>
+            <span class="font-mono text-emerald-400 font-bold">0800-770885</span>
+          </div>
+          <div class="flex justify-between">
+            <span>🏥 藥物諮詢專線：</span>
+            <span class="font-mono text-indigo-300">請洽各醫療院所藥局</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- Top 10 Leaderboard Modal (全服前 10 名雲端排行榜彈窗) -->
+  <div id="modal-leaderboard" class="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-xl max-h-[88vh] flex flex-col shadow-2xl overflow-hidden">
+      <!-- Modal Header -->
+      <div class="px-5 py-3.5 border-b border-slate-800 flex items-center justify-between bg-slate-900/90">
+        <div class="flex items-center gap-2.5">
+          <span class="text-2xl">🏆</span>
+          <div>
+            <div class="flex items-center gap-2">
+              <h3 class="font-bold text-slate-100 text-base">SDG 3.5 藥物安全守護 · 雲端榮譽榜</h3>
+              <span id="lb-cloud-status-badge" class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                <span>雲端同步</span>
+              </span>
+            </div>
+            <p class="text-xs text-slate-400">全體玩家前 10 名跨裝置即時排行榜，實時同步雲端數據庫</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-1.5">
+          <button id="btn-refresh-leaderboard" title="重新整理雲端排行" class="px-2 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold border border-slate-700 flex items-center gap-1 transition active:scale-95">
+            <span id="lb-refresh-icon">🔄</span>
+            <span class="hidden sm:inline">刷新</span>
+          </button>
+          <button id="btn-toggle-cloud-settings" title="自訂雲端後端 (如 Google 試算表)" class="px-2 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold border border-slate-700 flex items-center gap-1 transition active:scale-95">
+            <span>⚙️</span>
+            <span class="hidden sm:inline">設定</span>
+          </button>
+          <button id="btn-close-leaderboard" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center text-sm font-bold transition">
+            ✕
+          </button>
+        </div>
+      </div>
+
+      <!-- Cloud Settings Accordion Drawer -->
+      <div id="panel-cloud-settings" class="bg-slate-950 border-b border-slate-800/80 p-3.5 text-xs hidden">
+        <div class="font-bold text-slate-200 mb-1 flex items-center justify-between">
+          <span>⚙️ 自訂雲端資料庫網址 (Google 試算表 / 自建 API)</span>
+          <span class="text-[10px] text-slate-500">免伺服器 · 完全免費</span>
+        </div>
+        <p class="text-[11px] text-slate-400 mb-2">
+          支援直接串接 Google 試算表 Apps Script Web App。所有玩家成績將自動即時匯入您的試算表！(專案目錄有教學)
+        </p>
+        <div class="flex gap-2">
+          <input id="input-cloud-url" type="url" placeholder="貼上 Google 試算表 Web App 網址 (或留空使用內建雲端)..." class="flex-1 px-2.5 py-1.5 text-xs bg-slate-900 border border-slate-700 rounded-lg text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-400 font-mono" />
+          <button id="btn-save-cloud-url" class="px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs transition">
+            儲存
+          </button>
+          <button id="btn-reset-cloud-url" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs border border-slate-700 transition">
+            預設
+          </button>
+        </div>
+      </div>
+
+      <!-- Modal Body (Scrollable List) -->
+      <div class="p-4 overflow-y-auto flex-1 space-y-1.5 text-xs">
+        <div class="px-3 py-1 flex items-center justify-between text-[11px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-800/60 pb-1">
+          <div class="flex items-center gap-4">
+            <span class="w-8 text-center">名次</span>
+            <span>守護者暱稱</span>
+          </div>
+          <div class="flex items-center gap-6">
+            <span>達成時間</span>
+            <span class="w-16 text-right">最終得分</span>
+          </div>
+        </div>
+
+        <div id="leaderboard-items-container" class="space-y-1">
+          <!-- Injected via JavaScript -->
+        </div>
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="px-5 py-3 border-t border-slate-800 flex items-center justify-between bg-slate-900/90 text-xs">
+        <div class="text-slate-400 text-[11px]">
+          當前暱稱：<span id="lb-current-nickname" class="text-emerald-400 font-bold">健康守護者</span>
+          <span class="mx-1">·</span>
+          個人最佳：<span id="lb-current-rank" class="text-indigo-300 font-bold">計算中</span>
+        </div>
+        <button id="btn-close-leaderboard-footer" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200 transition">
+          返回遊戲
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Interaction Handbook Modal (藥物交互作用圖鑑) -->
+  <div id="modal-handbook" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+      <!-- Modal Header -->
+      <div class="px-5 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-900/90">
+        <div class="flex items-center gap-2.5">
+          <span class="text-xl">📖</span>
+          <div>
+            <h3 class="font-bold text-slate-100 text-base">藥物安全與交互作用圖鑑手冊</h3>
+            <p class="text-xs text-slate-400">完整收錄 8 種遊戲物件特性、風險等級與相剋組合</p>
+          </div>
+        </div>
+        <button id="btn-close-handbook" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center text-sm font-bold transition">
+          ✕
+        </button>
+      </div>
+
+      <!-- Modal Body (Scrollable) -->
+      <div class="p-5 overflow-y-auto space-y-4 text-xs">
+        <div class="text-[11px] text-slate-400 uppercase tracking-wider font-bold">八大藥物與物質圖鑑</div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <!-- Item 1 -->
+          <div class="p-3 rounded-xl bg-slate-950/60 border border-slate-800 flex gap-3 items-start">
+            <div class="w-9 h-9 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center text-xl shrink-0">💛</div>
+            <div>
+              <div class="font-bold text-slate-200 flex items-center justify-between">
+                <span>1. 維生素 / 保健食品</span>
+                <span class="text-[10px] text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded font-mono">+5 分</span>
+              </div>
+              <p class="text-[11px] text-slate-400 mt-1 leading-normal">安全補充品，日常適量攝取有助新陳代謝，無不良交互作用。</p>
+            </div>
+          </div>
+          <!-- Item 2 -->
+          <div class="p-3 rounded-xl bg-slate-950/60 border border-slate-800 flex gap-3 items-start">
+            <div class="w-9 h-9 rounded-lg bg-cyan-500/20 text-cyan-400 flex items-center justify-center text-xl shrink-0">💊</div>
+            <div>
+              <div class="font-bold text-slate-200 flex items-center justify-between">
+                <span>2. 感冒藥 (綜合)</span>
+                <span class="text-[10px] text-teal-400 bg-teal-500/10 px-1.5 py-0.5 rounded font-mono">+10 分</span>
+              </div>
+              <p class="text-[11px] text-slate-400 mt-1 leading-normal">常見成分含解熱鎮痛劑與抗組織胺。嚴禁與止痛藥重複混用或搭配酒精。</p>
+            </div>
+          </div>
+          <!-- Item 3 -->
+          <div class="p-3 rounded-xl bg-slate-950/60 border border-slate-800 flex gap-3 items-start">
+            <div class="w-9 h-9 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-xl shrink-0">🟢</div>
+            <div>
+              <div class="font-bold text-slate-200 flex items-center justify-between">
+                <span>3. 止痛藥 (一般藥物)</span>
+                <span class="text-[10px] text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded font-mono">+10 分</span>
+              </div>
+              <p class="text-[11px] text-slate-400 mt-1 leading-normal">乙醯胺酚或NSAID消炎止痛藥。過量傷肝，配酒易導致消化道潰瘍出血。</p>
+            </div>
+          </div>
+          <!-- Item 4 -->
+          <div class="p-3 rounded-xl bg-slate-950/60 border border-slate-800 flex gap-3 items-start">
+            <div class="w-9 h-9 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-xl shrink-0">🌙</div>
+            <div>
+              <div class="font-bold text-slate-200 flex items-center justify-between">
+                <span>4. 鎮靜安眠藥 (高風險)</span>
+                <span class="text-[10px] text-indigo-400 bg-indigo-500/10 px-1.5 py-0.5 rounded font-mono">+10 分</span>
+              </div>
+              <p class="text-[11px] text-slate-400 mt-1 leading-normal">BZD等中樞抑制劑。需醫師處方，混用酒精或嗎啡極度危險。</p>
+            </div>
+          </div>
+          <!-- Item 5 -->
+          <div class="p-3 rounded-xl bg-slate-950/60 border border-slate-800 flex gap-3 items-start">
+            <div class="w-9 h-9 rounded-lg bg-rose-500/20 text-rose-400 flex items-center justify-center text-xl shrink-0">💉</div>
+            <div>
+              <div class="font-bold text-slate-200 flex items-center justify-between">
+                <span>5. 醫療用嗎啡 (管制)</span>
+                <span class="text-[10px] text-rose-400 bg-rose-500/10 px-1.5 py-0.5 rounded font-mono">+10 分</span>
+              </div>
+              <p class="text-[11px] text-slate-400 mt-1 leading-normal">強效中樞止痛劑，屬一級管制藥品。混用其他抑制劑會誘發呼吸驟停。</p>
+            </div>
+          </div>
+          <!-- Item 6 -->
+          <div class="p-3 rounded-xl bg-slate-950/60 border border-slate-800 flex gap-3 items-start">
+            <div class="w-9 h-9 rounded-lg bg-pink-500/20 text-pink-400 flex items-center justify-center text-xl shrink-0">💎</div>
+            <div>
+              <div class="font-bold text-slate-200 flex items-center justify-between">
+                <span>6. 氯胺酮 / K他命</span>
+                <span class="text-[10px] text-pink-400 bg-pink-500/10 px-1.5 py-0.5 rounded font-mono">+10 分</span>
+              </div>
+              <p class="text-[11px] text-slate-400 mt-1 leading-normal">三級管制麻醉藥品。濫用易導致間質性膀胱炎與大腦不可逆神經損傷。</p>
+            </div>
+          </div>
+          <!-- Item 7 -->
+          <div class="p-3 rounded-xl bg-slate-950/60 border border-purple-500/30 flex gap-3 items-start">
+            <div class="w-9 h-9 rounded-lg bg-purple-500/20 text-purple-400 flex items-center justify-center text-xl shrink-0">☠️</div>
+            <div>
+              <div class="font-bold text-purple-300 flex items-center justify-between">
+                <span>7. 非法毒品 (絕對禁物)</span>
+                <span class="text-[10px] text-purple-400 bg-purple-500/20 px-1.5 py-0.5 rounded font-bold">直接淘汰</span>
+              </div>
+              <p class="text-[11px] text-slate-400 mt-1 leading-normal">海洛因、甲基安非他命等非法毒品，碰觸即構成違法與致命身心摧毀。</p>
+            </div>
+          </div>
+          <!-- Item 8 -->
+          <div class="p-3 rounded-xl bg-slate-950/60 border border-amber-500/30 flex gap-3 items-start">
+            <div class="w-9 h-9 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center text-xl shrink-0">🍺</div>
+            <div>
+              <div class="font-bold text-amber-300 flex items-center justify-between">
+                <span>8. 酒精 (有害飲酒)</span>
+                <span class="text-[10px] text-amber-400 bg-amber-500/20 px-1.5 py-0.5 rounded font-bold">危險催化劑</span>
+              </div>
+              <p class="text-[11px] text-slate-400 mt-1 leading-normal">乙醇是強烈中樞抑制與肝代謝競爭物質。服藥期間飲酒極度危險。</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="px-5 py-3 border-t border-slate-800 flex justify-end bg-slate-900/90">
+        <button id="btn-close-handbook-footer" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200 transition">
+          我知道了，返回遊戲
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* =====================================================================
+       PHARMA CATCH (藥物接接樂) - SDG 3.5 Substance Abuse & Drug Safety Game
+       ===================================================================== */
+
+    // --- Audio System (Web Audio API Synthesizer) ---
+    class SoundEngine {
+      constructor() {
+        this.ctx = null;
+        this.enabled = true;
+      }
+      init() {
+        if (!this.ctx) {
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          if (AudioContext) {
+            this.ctx = new AudioContext();
+          }
+        }
+        if (this.ctx && this.ctx.state === 'suspended') {
+          this.ctx.resume();
+        }
+      }
+      toggle() {
+        this.enabled = !this.enabled;
+        return this.enabled;
+      }
+      playCatchSafe() {
+        if (!this.enabled || !this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(523.25, now);
+        osc.frequency.exponentialRampToValueAtTime(659.25, now + 0.08);
+        osc.frequency.exponentialRampToValueAtTime(783.99, now + 0.16);
+        gain.gain.setValueAtTime(0.18, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.22);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.22);
+      }
+      playCatchMedicine() {
+        if (!this.enabled || !this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(587.33, now);
+        osc.frequency.exponentialRampToValueAtTime(880.00, now + 0.12);
+        gain.gain.setValueAtTime(0.2, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.18);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.18);
+      }
+      playWarning() {
+        if (!this.enabled || !this.ctx) return;
+        const now = this.ctx.currentTime;
+        [0, 0.12].forEach((offset, idx) => {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(idx === 0 ? 350 : 280, now + offset);
+          gain.gain.setValueAtTime(0.22, now + offset);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + offset + 0.1);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(now + offset);
+          osc.stop(now + offset + 0.1);
+        });
+      }
+      playHighRiskCrash() {
+        if (!this.enabled || !this.ctx) return;
+        const now = this.ctx.currentTime;
+        const oscLow = this.ctx.createOscillator();
+        const gainLow = this.ctx.createGain();
+        oscLow.type = 'sawtooth';
+        oscLow.frequency.setValueAtTime(110, now);
+        oscLow.frequency.linearRampToValueAtTime(45, now + 0.4);
+        gainLow.gain.setValueAtTime(0.35, now);
+        gainLow.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+        oscLow.connect(gainLow);
+        gainLow.connect(this.ctx.destination);
+        oscLow.start(now);
+        oscLow.stop(now + 0.5);
+
+        const oscBeep = this.ctx.createOscillator();
+        const gainBeep = this.ctx.createGain();
+        oscBeep.type = 'sine';
+        oscBeep.frequency.setValueAtTime(880, now + 0.15);
+        gainBeep.gain.setValueAtTime(0.25, now + 0.15);
+        gainBeep.gain.linearRampToValueAtTime(0.01, now + 0.95);
+        oscBeep.connect(gainBeep);
+        gainBeep.connect(this.ctx.destination);
+        oscBeep.start(now + 0.15);
+        oscBeep.stop(now + 0.95);
+      }
+      playIllicitDrugCrash() {
+        if (!this.enabled || !this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(440, now);
+        osc.frequency.exponentialRampToValueAtTime(55, now + 0.6);
+        gain.gain.setValueAtTime(0.3, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.65);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.65);
+      }
+    }
+
+    const sound = new SoundEngine();
+
+    // --- Cloud Leaderboard System (Global Top 10 with Local Fallback) ---
+    const CloudLeaderboard = {
+      defaultEndpoint: 'https://kvdb.io/7zE3wUqK8bF2tY6m9L/pharma_catch_top10',
+      storageKey: 'pharma_catch_cloud_url',
+      localKey: 'pharma_catch_leaderboard_top10',
+
+      getEndpoint() {
+        return localStorage.getItem(this.storageKey) || this.defaultEndpoint;
+      },
+      setEndpoint(url) {
+        if (url && url.trim().length > 0) {
+          localStorage.setItem(this.storageKey, url.trim());
+        } else {
+          localStorage.removeItem(this.storageKey);
+        }
+      },
+
+      async fetchTop10() {
+        const endpoint = this.getEndpoint();
+        try {
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), 3500);
+          const res = await fetch(endpoint, { signal: controller.signal });
+          clearTimeout(timeout);
+          if (res.ok) {
+            const data = await res.json();
+            if (Array.isArray(data) && data.length > 0) {
+              const cleaned = data.slice(0, 10);
+              localStorage.setItem(this.localKey, JSON.stringify(cleaned));
+              return { success: true, isCloud: true, list: cleaned };
+            }
+          }
+        } catch (e) {
+          console.warn('Cloud sync offline or using fallback.', e);
+        }
+        return { success: true, isCloud: false, list: this.getLocalFallback() };
+      },
+
+      async submitScore(playerName, finalScore, survivalTime) {
+        const fetchResult = await this.fetchTop10();
+        const list = fetchResult.list;
+        const minScore = list.length >= 10 ? list[list.length - 1].score : 0;
+        const isTop10 = finalScore > 0 && (list.length < 10 || finalScore >= minScore);
+
+        if (!isTop10) {
+          return { isTop10: false, rank: -1, minScore, isCloud: fetchResult.isCloud };
+        }
+
+        const nowStr = new Date().toLocaleDateString('zh-TW', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+        const newEntry = {
+          name: playerName,
+          score: finalScore,
+          time: Math.floor(survivalTime),
+          date: nowStr,
+          isCurrentEntry: true
+        };
+        list.push(newEntry);
+        list.sort((a, b) => b.score - a.score || b.time - a.time);
+        const top10 = list.slice(0, 10);
+        const rank = top10.findIndex(e => e.isCurrentEntry) + 1;
+        top10.forEach(e => delete e.isCurrentEntry);
+
+        localStorage.setItem(this.localKey, JSON.stringify(top10));
+
+        let cloudSaved = false;
+        try {
+          const endpoint = this.getEndpoint();
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), 4000);
+          const res = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(top10),
+            signal: controller.signal
+          });
+          clearTimeout(timeout);
+          if (res.ok) cloudSaved = true;
+        } catch (e) {
+          console.warn('Could not save to cloud endpoint.', e);
+        }
+
+        return { isTop10: true, rank, minScore, isCloud: cloudSaved || fetchResult.isCloud };
+      },
+
+      getLocalFallback() {
+        const saved = localStorage.getItem(this.localKey);
+        if (saved) {
+          try { return JSON.parse(saved); } catch (e) {}
+        }
+        return [
+          { name: "台大藥學小陳", score: 340, time: 52, date: "官方榜首" },
+          { name: "SDG3守護隊長", score: 310, time: 48, date: "官方前列" },
+          { name: "毒品剋星阿豪", score: 280, time: 44, date: "官方前列" },
+          { name: "健康拒酒先鋒", score: 260, time: 40, date: "官方前列" },
+          { name: "臨床藥師林萱", score: 240, time: 37, date: "官方前列" },
+          { name: "反毒衛教大使", score: 220, time: 34, date: "官方前列" },
+          { name: "消炎止痛專家", score: 200, time: 31, date: "官方前列" },
+          { name: "安眠藥不配酒", score: 190, time: 29, date: "官方前列" },
+          { name: "急救天使阿梅", score: 170, time: 27, date: "官方前列" },
+          { name: "社區健康志工", score: 150, time: 25, date: "官方前列" }
+        ];
+      }
+    };
+
+    async function renderLeaderboardView() {
+      const container = document.getElementById('leaderboard-items-container');
+      const badge = document.getElementById('lb-cloud-status-badge');
+      const curNick = state.playerName || '健康守護者';
+      document.getElementById('lb-current-nickname').textContent = curNick;
+
+      container.innerHTML = `
+        <div class="py-6 text-center text-slate-400 flex items-center justify-center gap-2">
+          <span class="animate-spin text-base">🔄</span>
+          <span>正在連接雲端資料庫讀取最新排行...</span>
+        </div>
+      `;
+
+      const result = await CloudLeaderboard.fetchTop10();
+      const board = result.list;
+
+      if (result.isCloud) {
+        badge.className = 'px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1';
+        badge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span><span>雲端連線同步中</span>';
+      } else {
+        badge.className = 'px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center gap-1';
+        badge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span><span>本機離線暫存</span>';
+      }
+
+      let html = '';
+      let bestRank = -1;
+
+      board.forEach((entry, idx) => {
+        const rank = idx + 1;
+        const isMe = entry.name === curNick;
+        if (isMe && bestRank === -1) bestRank = rank;
+
+        let rankBadge = `<span class="w-8 font-mono text-center font-bold text-slate-400">${rank}</span>`;
+        if (rank === 1) rankBadge = `<span class="w-8 text-center text-amber-400 font-bold text-sm">🥇</span>`;
+        else if (rank === 2) rankBadge = `<span class="w-8 text-center text-slate-300 font-bold text-sm">🥈</span>`;
+        else if (rank === 3) rankBadge = `<span class="w-8 text-center text-amber-600 font-bold text-sm">🥉</span>`;
+
+        html += `
+          <div class="px-3 py-2 rounded-xl flex items-center justify-between ${isMe ? 'bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 font-bold shadow-sm' : 'bg-slate-950/60 border border-slate-800/80 text-slate-300 hover:bg-slate-800/50'} transition">
+            <div class="flex items-center gap-4 overflow-hidden">
+              ${rankBadge}
+              <div class="truncate max-w-[200px]">
+                <span class="font-medium ${isMe ? 'text-emerald-300 font-bold' : 'text-slate-200'}">${entry.name}</span>
+                ${isMe ? '<span class="text-[10px] ml-1 px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 font-semibold">(您)</span>' : ''}
+              </div>
+            </div>
+            <div class="flex items-center gap-6 font-mono">
+              <span class="text-slate-400 text-[11px]">${entry.date || `${entry.time}s`}</span>
+              <span class="w-16 text-right font-black text-emerald-400 text-sm">${entry.score} 分</span>
+            </div>
+          </div>
+        `;
+      });
+
+      container.innerHTML = html;
+      document.getElementById('lb-current-rank').textContent = bestRank > 0 ? `第 ${bestRank} 名 🏆` : '尚未進前10';
+    }
+
+    // --- Drug & Substance Definitions (8 Items) ---
+    const ITEMS_DEF = {
+      1: { id: 1, name: '維生素/保健品', shortName: '維生素', category: 'safe', score: 5, color: '#F59E0B' },
+      2: { id: 2, name: '感冒藥', shortName: '感冒藥', category: 'common', score: 10, color: '#06B6D4' },
+      3: { id: 3, name: '止痛藥', shortName: '止痛藥', category: 'common', score: 10, color: '#10B981' },
+      4: { id: 4, name: '鎮靜安眠藥', shortName: '安眠藥', category: 'high_risk_drug', score: 10, color: '#8B5CF6' },
+      5: { id: 5, name: '醫療用嗎啡', shortName: '嗎啡', category: 'high_risk_drug', score: 10, color: '#EF4444' },
+      6: { id: 6, name: '氯胺酮(K他命)', shortName: '氯胺酮', category: 'high_risk_drug', score: 10, color: '#EC4899' },
+      7: { id: 7, name: '非法毒品', shortName: '毒品', category: 'illicit', score: 0, color: '#DC2626' },
+      8: { id: 8, name: '酒精飲料', shortName: '酒精', category: 'alcohol', score: 0, color: '#FBBF24' }
+    };
+
+    const COMBINATIONS_DATA = {
+      '4-8': { type: 'high_risk', title: '鎮靜安眠藥 ＋ 酒精', reason: '兩者皆為強效中樞神經抑制劑，交互加乘引發重度意識喪失與致死性呼吸衰竭！' },
+      '5-8': { type: 'high_risk', title: '醫療嗎啡 ＋ 酒精', reason: '鴉片類止痛劑與酒精協同抑制延髓呼吸中樞，血氧驟降，為致命藥物過量典型原因！' },
+      '4-5': { type: 'high_risk', title: '嗎啡 ＋ 鎮靜安眠藥', reason: '雙重中樞抑制作用 (FDA 黑框警語)，呼吸反射完全消失，極易在睡夢中窒息死亡！' },
+      '6-8': { type: 'high_risk', title: '氯胺酮 ＋ 酒精', reason: '加重運動失調、急性意識混亂，誘發嘔吐物窒息、惡性高血壓與心因性休克！' },
+      '4-6': { type: 'high_risk', title: '氯胺酮 ＋ 鎮靜安眠藥', reason: '多重麻醉抑制加乘，深層神經昏迷與心血管反射衰竭！' },
+      '5-6': { type: 'high_risk', title: '氯胺酮 ＋ 嗎啡', reason: '多重管制精神解離與鴉片複合毒性，迅速引發急性呼吸中止！' },
+      '2-8': { type: 'warning', title: '感冒藥 ＋ 酒精', reason: '感冒藥之抗組織胺與酒精加劇極度嗜睡與眩暈，乙醯胺酚成分同時加重急性肝毒性。' },
+      '2-3': { type: 'warning', title: '感冒藥 ＋ 止痛藥', reason: '兩者多重複含有「乙醯胺酚 (Acetaminophen)」，劑量疊加極易超出每日安全極限造成急性肝壞死！' },
+      '3-8': { type: 'warning', title: '止痛藥 ＋ 酒精', reason: '消炎止痛藥 (NSAID) 併用酒精大幅提升急性胃腸黏膜潰瘍、大出血與穿孔風險！' }
+    };
+
+    function getComboKey(idA, idB) {
+      return `${Math.min(idA, idB)}-${Math.max(idA, idB)}`;
+    }
+
+    // --- Game Variables & States ---
+    const canvas = document.getElementById('game-canvas');
+    const ctx = canvas.getContext('2d');
+    const DRUG_METABOLISM_TIME = 8.0;
+
+    let state = {
+      running: false,
+      paused: false,
+      playerName: '健康守護者',
+      score: 0,
+      highScore: parseInt(localStorage.getItem('pharma_catch_highscore') || '0', 10),
+      strikes: 0,
+      startTime: 0,
+      survivalTime: 0,
+      activeDrugs: [],
+      fallingObjects: [],
+      particles: [],
+      floatTexts: [],
+      catcher: {
+        x: 200,
+        y: 520,
+        width: 72,
+        height: 54,
+        targetX: 200,
+        walkCycle: 0,
+        face: 'smile'
+      },
+      spawnTimer: 0,
+      spawnInterval: 1.1,
+      lastTimestamp: 0
+    };
+
+    // --- Screen Size & Coordinate Mapping ---
+    let logicalWidth = 400;
+    let logicalHeight = 580;
+    let scale = 1;
+
+    function resizeCanvas() {
+      const rect = canvas.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      const w = rect.width > 0 ? rect.width : (canvas.parentElement && canvas.parentElement.clientWidth > 0 ? canvas.parentElement.clientWidth : 400);
+      const h = rect.height > 0 ? rect.height : (canvas.parentElement && canvas.parentElement.clientHeight > 0 ? canvas.parentElement.clientHeight : 580);
+      canvas.width = w * dpr;
+      canvas.height = h * dpr;
+      scale = (canvas.width / logicalWidth) || 1;
+      ctx.setTransform(scale, 0, 0, scale, 0, 0);
+
+      state.catcher.y = logicalHeight - 56;
+      if (!state.running) {
+        state.catcher.x = logicalWidth / 2;
+        state.catcher.targetX = logicalWidth / 2;
+      }
+    }
+
+    window.addEventListener('resize', resizeCanvas);
+
+    // --- Particle & Floating Text Effects ---
+    function spawnParticles(x, y, color, count = 12) {
+      for (let i = 0; i < count; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = Math.random() * 4 + 1;
+        state.particles.push({
+          x, y,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed - 1.5,
+          color,
+          alpha: 1,
+          size: Math.random() * 4 + 2,
+          decay: Math.random() * 0.03 + 0.02
+        });
+      }
+    }
+
+    function addFloatText(text, x, y, color = '#10B981') {
+      state.floatTexts.push({ text, x, y, vy: -1.2, alpha: 1, color });
+    }
+
+    function flashDangerScreen() {
+      const flash = document.getElementById('danger-flash');
+      flash.style.opacity = '1';
+      setTimeout(() => { flash.style.opacity = '0'; }, 180);
+    }
+
+    // --- Canvas Item Drawing ---
+    function drawMedicalItem(ctx, itemDef, x, y, size, angle, isThreat = false) {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(angle);
+
+      if (isThreat) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(0, 0, size * 1.5, 0, Math.PI * 2);
+        ctx.strokeStyle = '#EF4444';
+        ctx.lineWidth = 2.5;
+        ctx.setLineDash([4, 4]);
+        ctx.stroke();
+        ctx.restore();
+
+        ctx.save();
+        ctx.font = 'bold 9px sans-serif';
+        ctx.fillStyle = '#EF4444';
+        ctx.textAlign = 'center';
+        ctx.fillText('⚠️相剋!', 0, -size * 1.3);
+        ctx.restore();
+      }
+
+      const r = size;
+      switch (itemDef.id) {
+        case 1: // Vitamin
+          ctx.beginPath();
+          ctx.arc(0, 0, r, 0, Math.PI * 2);
+          ctx.fillStyle = '#F59E0B';
+          ctx.shadowColor = 'rgba(245, 158, 11, 0.7)';
+          ctx.shadowBlur = 10;
+          ctx.fill();
+          ctx.fillStyle = '#FFFFFF';
+          ctx.fillRect(-r * 0.55, -r * 0.16, r * 1.1, r * 0.32);
+          ctx.fillRect(-r * 0.16, -r * 0.55, r * 0.32, r * 1.1);
+          break;
+        case 2: // Cold Medicine
+          const capW = r * 1.4, capH = r * 0.75;
+          ctx.shadowColor = 'rgba(6, 182, 212, 0.6)';
+          ctx.shadowBlur = 8;
+          ctx.beginPath();
+          ctx.arc(-capW * 0.25, 0, capH * 0.5, Math.PI * 0.5, Math.PI * 1.5);
+          ctx.lineTo(0, -capH * 0.5); ctx.lineTo(0, capH * 0.5);
+          ctx.fillStyle = '#06B6D4'; ctx.fill();
+          ctx.beginPath();
+          ctx.arc(capW * 0.25, 0, capH * 0.5, -Math.PI * 0.5, Math.PI * 0.5);
+          ctx.lineTo(0, capH * 0.5); ctx.lineTo(0, -capH * 0.5);
+          ctx.fillStyle = '#F8FAFC'; ctx.fill();
+          break;
+        case 3: // Painkiller
+          ctx.beginPath();
+          ctx.arc(0, 0, r, 0, Math.PI * 2);
+          ctx.fillStyle = '#10B981';
+          ctx.shadowColor = 'rgba(16, 185, 129, 0.6)';
+          ctx.shadowBlur = 8;
+          ctx.fill();
+          ctx.strokeStyle = '#064E3B'; ctx.lineWidth = 2;
+          ctx.beginPath(); ctx.moveTo(-r * 0.7, 0); ctx.lineTo(r * 0.7, 0); ctx.stroke();
+          ctx.font = 'bold 8px sans-serif'; ctx.fillStyle = '#FFFFFF'; ctx.textAlign = 'center';
+          ctx.fillText('Rx', 0, -r * 0.25);
+          break;
+        case 4: // Sedative
+          ctx.beginPath();
+          for (let i = 0; i < 6; i++) {
+            const a = (i * Math.PI) / 3;
+            const px = Math.cos(a) * r, py = Math.sin(a) * r;
+            if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+          }
+          ctx.fillStyle = '#7C3AED'; ctx.shadowColor = 'rgba(124, 58, 237, 0.8)'; ctx.shadowBlur = 10; ctx.fill();
+          ctx.font = '11px sans-serif'; ctx.fillStyle = '#FDE047'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+          ctx.fillText('🌙', 0, 0);
+          break;
+        case 5: // Morphine Ampoule
+          ctx.shadowColor = 'rgba(239, 68, 68, 0.7)'; ctx.shadowBlur = 10;
+          ctx.fillStyle = '#EF4444'; ctx.fillRect(-r * 0.35, -r * 0.5, r * 0.7, r * 1.1);
+          ctx.fillStyle = '#FCA5A5'; ctx.fillRect(-r * 0.18, -r * 0.9, r * 0.36, r * 0.4);
+          ctx.fillRect(-r * 0.08, -r * 1.2, r * 0.16, r * 0.3);
+          break;
+        case 6: // Ketamine
+          ctx.beginPath();
+          ctx.moveTo(0, -r * 1.2); ctx.lineTo(r, 0); ctx.lineTo(0, r * 1.2); ctx.lineTo(-r, 0); ctx.closePath();
+          ctx.fillStyle = '#EC4899'; ctx.shadowColor = 'rgba(236, 72, 153, 0.8)'; ctx.shadowBlur = 12; ctx.fill();
+          break;
+        case 7: // Illicit Drugs (Skull)
+          ctx.shadowColor = 'rgba(220, 38, 38, 0.9)'; ctx.shadowBlur = 15;
+          ctx.beginPath(); ctx.arc(0, 0, r * 1.1, 0, Math.PI * 2);
+          ctx.fillStyle = '#18181B'; ctx.fill();
+          ctx.strokeStyle = '#DC2626'; ctx.lineWidth = 2.5; ctx.stroke();
+          ctx.font = `${Math.floor(r * 1.3)}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+          ctx.fillText('💀', 0, 1);
+          break;
+        case 8: // Alcohol
+          ctx.shadowColor = 'rgba(245, 158, 11, 0.8)'; ctx.shadowBlur = 10;
+          ctx.fillStyle = '#F59E0B'; ctx.beginPath();
+          ctx.roundRect(-r * 0.5, -r * 0.5, r, r * 1.1, [0, 0, 4, 4]); ctx.fill();
+          ctx.fillStyle = '#FFFFFF'; ctx.beginPath();
+          ctx.arc(-r * 0.35, -r * 0.5, r * 0.28, 0, Math.PI * 2);
+          ctx.arc(0, -r * 0.58, r * 0.32, 0, Math.PI * 2);
+          ctx.arc(r * 0.35, -r * 0.5, r * 0.28, 0, Math.PI * 2);
+          ctx.fill();
+          break;
+      }
+      ctx.restore();
+    }
+
+    // --- Canvas Human Character ("藥師小人" 生動人體造型) ---
+    function drawHumanCatcher(ctx, catcher) {
+      const { x, y, width, height, face, walkCycle } = catcher;
+      ctx.save();
+      ctx.translate(x, y);
+
+      const isMoving = Math.abs(catcher.targetX - catcher.x) > 1.0;
+      const hasDanger = state.activeDrugs.some(d => d.id === 4 || d.id === 5 || d.id === 6);
+
+      // 1. Neon Ground Spotlight Aura beneath feet
+      const footGrad = ctx.createRadialGradient(0, height * 0.55, 4, 0, height * 0.55, width * 0.7);
+      footGrad.addColorStop(0, 'rgba(56, 189, 248, 0.45)');
+      footGrad.addColorStop(1, 'rgba(56, 189, 248, 0)');
+      ctx.fillStyle = footGrad;
+      ctx.fillRect(-width * 0.8, height * 0.25, width * 1.6, height * 0.6);
+
+      // 2. Outstretched Hands with Glowing Catching Energy Net (雙手向上伸展接藥)
+      const armSpread = width * 0.48;
+      const handY = -height * 0.55;
+
+      // Energy Catch Field Arc
+      ctx.shadowColor = hasDanger ? '#EF4444' : '#10B981';
+      ctx.shadowBlur = 14;
+      ctx.strokeStyle = '#FFFFFF';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(0, handY + 12, armSpread, Math.PI * 1.15, Math.PI * 1.85);
+      ctx.stroke();
+
+      ctx.fillStyle = hasDanger ? 'rgba(239, 68, 68, 0.25)' : 'rgba(16, 185, 129, 0.25)';
+      ctx.fill();
+
+      // 3. Human Arms (手臂與袖口)
+      ctx.shadowBlur = 0;
+      ctx.strokeStyle = '#F8FAFC'; // White medical coat sleeves
+      ctx.lineWidth = 5.5;
+      ctx.lineCap = 'round';
+
+      // Left Arm: Shoulder (-14, -height * 0.1) to Hand (-armSpread, handY)
+      ctx.beginPath();
+      ctx.moveTo(-14, -height * 0.1);
+      ctx.quadraticCurveTo(-width * 0.38, -height * 0.25, -armSpread, handY);
+      ctx.stroke();
+
+      // Right Arm: Shoulder (14, -height * 0.1) to Hand (armSpread, handY)
+      ctx.beginPath();
+      ctx.moveTo(14, -height * 0.1);
+      ctx.quadraticCurveTo(width * 0.38, -height * 0.25, armSpread, handY);
+      ctx.stroke();
+
+      // Human Hands (膚色手掌)
+      ctx.fillStyle = '#FDE68A';
+      ctx.beginPath();
+      ctx.arc(-armSpread, handY, 4.5, 0, Math.PI * 2);
+      ctx.arc(armSpread, handY, 4.5, 0, Math.PI * 2);
+      ctx.fill();
+
+      // 4. Human Legs (行走/奔跑雙腿)
+      const legOffset = isMoving ? Math.sin(walkCycle) * 9 : 0;
+      ctx.strokeStyle = '#1E3A8A'; // Blue Pants
+      ctx.lineWidth = 5;
+
+      // Left Leg
+      ctx.beginPath();
+      ctx.moveTo(-7, height * 0.2);
+      ctx.lineTo(-9 - legOffset, height * 0.48);
+      ctx.stroke();
+
+      // Right Leg
+      ctx.beginPath();
+      ctx.moveTo(7, height * 0.2);
+      ctx.lineTo(9 + legOffset, height * 0.48);
+      ctx.stroke();
+
+      // Shoes
+      ctx.fillStyle = '#0F172A';
+      ctx.fillRect(-14 - legOffset, height * 0.46, 9, 5);
+      ctx.fillRect(5 + legOffset, height * 0.46, 9, 5);
+
+      // 5. Human Torso (白袍醫師/藥師身體)
+      ctx.fillStyle = '#FFFFFF';
+      ctx.strokeStyle = '#E2E8F0';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.roundRect(-width * 0.24, -height * 0.15, width * 0.48, height * 0.38, [6, 6, 4, 4]);
+      ctx.fill();
+      ctx.stroke();
+
+      // Red Medical Cross on Chest
+      ctx.fillStyle = '#EF4444';
+      ctx.fillRect(-3, -height * 0.05, 6, 12);
+      ctx.fillRect(-6, -height * 0.01, 12, 6);
+
+      // 6. Human Head & Expressive Face (生動小人臉部)
+      // Head Skin
+      ctx.fillStyle = '#FDE68A';
+      ctx.beginPath();
+      ctx.arc(0, -height * 0.3, 13, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Hair
+      ctx.fillStyle = '#334155';
+      ctx.beginPath();
+      ctx.arc(0, -height * 0.33, 13, Math.PI, Math.PI * 2);
+      ctx.fill();
+      ctx.fillRect(-13, -height * 0.33, 4, 8);
+      ctx.fillRect(9, -height * 0.33, 4, 8);
+
+      // Eyes & Expression
+      if (face === 'worried') {
+        // Red alert eyes & sweat
+        ctx.fillStyle = '#DC2626';
+        ctx.beginPath();
+        ctx.arc(-5, -height * 0.3, 2.2, 0, Math.PI * 2);
+        ctx.arc(5, -height * 0.3, 2.2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#38BDF8';
+        ctx.beginPath();
+        ctx.arc(12, -height * 0.38, 2.5, 0, Math.PI * 2);
+        ctx.fill();
+      } else {
+        // Cute smiling eyes
+        ctx.fillStyle = '#0F172A';
+        ctx.beginPath();
+        ctx.arc(-5, -height * 0.3, 2, 0, Math.PI * 2);
+        ctx.arc(5, -height * 0.3, 2, 0, Math.PI * 2);
+        ctx.fill();
+        // Rosy cheeks
+        ctx.fillStyle = 'rgba(244, 63, 94, 0.4)';
+        ctx.beginPath();
+        ctx.arc(-8, -height * 0.25, 2.5, 0, Math.PI * 2);
+        ctx.arc(8, -height * 0.25, 2.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // 7. Floating Nickname Label
+      ctx.fillStyle = '#38BDF8';
+      ctx.font = 'bold 11px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.shadowColor = 'rgba(0,0,0,0.8)';
+      ctx.shadowBlur = 4;
+      ctx.fillText(state.playerName, 0, -height * 0.72);
+
+      ctx.restore();
+    }
+
+    // --- Game Logic: Checks & Interactions ---
+    function checkThreateningIncoming(typeId) {
+      if (typeId === 7) return true;
+      for (const drug of state.activeDrugs) {
+        const key = getComboKey(drug.id, typeId);
+        if (COMBINATIONS_DATA[key]) return true;
+      }
+      return false;
+    }
+
+    function processCatch(item) {
+      const typeId = item.typeId;
+      const itemDef = ITEMS_DEF[typeId];
+
+      if (typeId === 7) {
+        sound.playIllicitDrugCrash();
+        flashDangerScreen();
+        triggerGameOver(
+          '☠️ 誤觸非法管制毒品',
+          '絕對禁物 · 毒品危害防制條例',
+          '海洛因、甲基安非他命等非法毒品具有極強成癮性與不可逆神經破壞，依法嚴禁持有與施用！'
+        );
+        return;
+      }
+
+      let triggeredHighRisk = null;
+      let triggeredWarning = null;
+
+      for (const active of state.activeDrugs) {
+        const key = getComboKey(active.id, typeId);
+        const combo = COMBINATIONS_DATA[key];
+        if (combo) {
+          if (combo.type === 'high_risk') {
+            triggeredHighRisk = combo;
+            break;
+          } else if (combo.type === 'warning') {
+            triggeredWarning = combo;
+          }
+        }
+      }
+
+      if (triggeredHighRisk) {
+        sound.playHighRiskCrash();
+        flashDangerScreen();
+        triggerGameOver(
+          `🚨 致命交互作用：${triggeredHighRisk.title}`,
+          '觸發高風險危險組合 · 立即失敗',
+          triggeredHighRisk.reason
+        );
+        return;
+      }
+
+      if (triggeredWarning) {
+        state.strikes++;
+        updateStrikesDisplay();
+        sound.playWarning();
+        flashDangerScreen();
+        addFloatText('⚠️ 注意成分!', item.x, item.y, '#F59E0B');
+
+        if (state.strikes >= 2) {
+          setTimeout(() => {
+            sound.playHighRiskCrash();
+            triggerGameOver(
+              `⚠️ 累計二次成分過量：${triggeredWarning.title}`,
+              '累計二次注意成分失誤 · 判定失敗',
+              triggeredWarning.reason
+            );
+          }, 200);
+          return;
+        }
+      }
+
+      if (typeId === 1) {
+        state.score += itemDef.score;
+        sound.playCatchSafe();
+        spawnParticles(item.x, item.y, itemDef.color, 14);
+        addFloatText(`+${itemDef.score}`, item.x, item.y, '#FBBF24');
+      } else if (typeId === 8) {
+        sound.playCatchSafe();
+        spawnParticles(item.x, item.y, '#F59E0B', 8);
+        addFloatText('飲酒中 (注意後續用藥)', item.x, item.y, '#FCD34D');
+        addActiveDrug(8);
+      } else {
+        state.score += itemDef.score;
+        sound.playCatchMedicine();
+        spawnParticles(item.x, item.y, itemDef.color, 14);
+        addFloatText(`+${itemDef.score}`, item.x, item.y, '#10B981');
+        addActiveDrug(typeId);
+      }
+
+      updateScoreDisplay();
+    }
+
+    function addActiveDrug(typeId) {
+      const existing = state.activeDrugs.find(d => d.id === typeId);
+      if (existing) {
+        existing.remainingTime = DRUG_METABOLISM_TIME;
+      } else {
+        state.activeDrugs.push({
+          id: typeId,
+          remainingTime: DRUG_METABOLISM_TIME,
+          def: ITEMS_DEF[typeId]
+        });
+      }
+      renderActiveDrugsHUD();
+    }
+
+    function updateActiveDrugs(dt) {
+      let changed = false;
+      for (let i = state.activeDrugs.length - 1; i >= 0; i--) {
+        state.activeDrugs[i].remainingTime -= dt;
+        if (state.activeDrugs[i].remainingTime <= 0) {
+          state.activeDrugs.splice(i, 1);
+          changed = true;
+        }
+      }
+      if (changed || state.activeDrugs.length > 0) {
+        renderActiveDrugsHUD();
+      }
+    }
+
+    function renderActiveDrugsHUD() {
+      const container = document.getElementById('active-drugs-container');
+      const radar = document.getElementById('conflict-radar');
+      const radarText = document.getElementById('conflict-radar-text');
+
+      if (state.activeDrugs.length === 0) {
+        container.innerHTML = `
+          <div class="text-center py-4 text-xs text-slate-500 border border-dashed border-slate-800 rounded-xl">
+            體內無作用中藥物，狀態良好 ✨
+          </div>
+        `;
+        radar.classList.add('hidden');
+        state.catcher.face = 'smile';
+        return;
+      }
+
+      let html = '';
+      let threateningItems = [];
+
+      state.activeDrugs.forEach(drug => {
+        const pct = Math.max(0, (drug.remainingTime / DRUG_METABOLISM_TIME) * 100);
+        html += `
+          <div class="p-2 rounded-xl bg-slate-950/70 border border-slate-800 flex items-center justify-between text-xs">
+            <div class="flex items-center gap-2">
+              <span class="text-sm">💊</span>
+              <div>
+                <div class="font-bold text-slate-200">${drug.def.name}</div>
+                <div class="text-[10px] text-slate-400">代謝中...</div>
+              </div>
+            </div>
+            <div class="flex items-center gap-2">
+              <div class="w-16 h-1.5 rounded-full bg-slate-800 overflow-hidden">
+                <div class="h-full rounded-full transition-all duration-100" style="width: ${pct}%; background-color: ${drug.def.color};"></div>
+              </div>
+              <span class="font-mono text-[11px] text-slate-300 w-8 text-right font-bold">${drug.remainingTime.toFixed(1)}s</span>
+            </div>
+          </div>
+        `;
+
+        for (let otherId = 1; otherId <= 8; otherId++) {
+          const key = getComboKey(drug.id, otherId);
+          if (COMBINATIONS_DATA[key]) {
+            threateningItems.push(ITEMS_DEF[otherId].shortName);
+          }
+        }
+      });
+
+      container.innerHTML = html;
+
+      const uniqueThreats = [...new Set(threateningItems)];
+      if (uniqueThreats.length > 0) {
+        radar.classList.remove('hidden');
+        radarText.innerHTML = `請避開空中降落的：<span class="text-rose-400 font-bold">${uniqueThreats.join('、')}</span>`;
+        state.catcher.face = 'worried';
+      } else {
+        radar.classList.add('hidden');
+        state.catcher.face = 'smile';
+      }
+    }
+
+    function updateScoreDisplay() {
+      document.getElementById('hud-score').textContent = state.score;
+      if (state.score > state.highScore) {
+        state.highScore = state.score;
+        localStorage.setItem('pharma_catch_highscore', state.highScore.toString());
+      }
+      document.getElementById('hud-highscore').textContent = state.highScore;
+    }
+
+    function updateStrikesDisplay() {
+      document.getElementById('hud-strikes').textContent = state.strikes;
+      const s1 = document.getElementById('strike-1');
+      const s2 = document.getElementById('strike-2');
+      if (state.strikes >= 1) {
+        s1.classList.remove('bg-slate-800', 'border-slate-700');
+        s1.classList.add('bg-amber-500', 'border-amber-400');
+      } else {
+        s1.classList.add('bg-slate-800', 'border-slate-700');
+        s1.classList.remove('bg-amber-500', 'border-amber-400');
+      }
+      if (state.strikes >= 2) {
+        s2.classList.remove('bg-slate-800', 'border-slate-700');
+        s2.classList.add('bg-rose-500', 'border-rose-400');
+      } else {
+        s2.classList.add('bg-slate-800', 'border-slate-700');
+        s2.classList.remove('bg-rose-500', 'border-rose-400');
+      }
+    }
+
+    // --- Spawn Mechanics ---
+    function spawnFallingObject() {
+      const weights = [
+        { id: 1, w: 22 },
+        { id: 2, w: 20 },
+        { id: 3, w: 18 },
+        { id: 4, w: 11 },
+        { id: 5, w: 9 },
+        { id: 6, w: 8 },
+        { id: 7, w: 5 },
+        { id: 8, w: 12 }
+      ];
+
+      const hasSedativeOrMorphine = state.activeDrugs.some(d => d.id === 4 || d.id === 5 || d.id === 6);
+      if (hasSedativeOrMorphine) {
+        weights.find(w => w.id === 8).w += 10;
+      }
+
+      const totalWeight = weights.reduce((sum, item) => sum + item.w, 0);
+      let rand = Math.random() * totalWeight;
+      let chosenId = 1;
+      for (const w of weights) {
+        if (rand < w.w) { chosenId = w.id; break; }
+        rand -= w.w;
+      }
+
+      const margin = 36;
+      const x = Math.random() * (logicalWidth - margin * 2) + margin;
+      const baseSpeed = 110 + Math.min(180, state.score * 1.5);
+      const vy = baseSpeed + (Math.random() * 30 - 15);
+
+      state.fallingObjects.push({
+        typeId: chosenId,
+        x, y: -20, vy,
+        size: 14,
+        angle: Math.random() * Math.PI,
+        rotSpeed: (Math.random() - 0.5) * 2.2
+      });
+    }
+
+    // --- Main Game Loop ---
+    function gameLoop(timestamp) {
+      if (!state.lastTimestamp) state.lastTimestamp = timestamp;
+      const dt = Math.min(0.1, (timestamp - state.lastTimestamp) / 1000);
+      state.lastTimestamp = timestamp;
+
+      if (state.running && !state.paused) {
+        updateGame(dt);
+      }
+
+      renderGame();
+      requestAnimationFrame(gameLoop);
+    }
+
+    function updateGame(dt) {
+      state.survivalTime = (Date.now() - state.startTime) / 1000;
+
+      const prevX = state.catcher.x;
+      state.catcher.x += (state.catcher.targetX - state.catcher.x) * 0.22;
+      const halfW = state.catcher.width / 2;
+      if (state.catcher.x < halfW) state.catcher.x = halfW;
+      if (state.catcher.x > logicalWidth - halfW) state.catcher.x = logicalWidth - halfW;
+
+      // Leg animation walk cycle
+      if (Math.abs(state.catcher.x - prevX) > 0.4) {
+        state.catcher.walkCycle += dt * 14;
+      }
+
+      updateActiveDrugs(dt);
+
+      state.spawnTimer += dt;
+      const currentInterval = Math.max(0.65, state.spawnInterval - (state.score * 0.003));
+      if (state.spawnTimer >= currentInterval) {
+        state.spawnTimer = 0;
+        spawnFallingObject();
+      }
+
+      // Hit Detection: Hands outstretched top
+      const catchTop = state.catcher.y - state.catcher.height * 0.55;
+      const catcherLeft = state.catcher.x - state.catcher.width * 0.52;
+      const catcherRight = state.catcher.x + state.catcher.width * 0.52;
+
+      for (let i = state.fallingObjects.length - 1; i >= 0; i--) {
+        const obj = state.fallingObjects[i];
+        obj.y += obj.vy * dt;
+        obj.angle += obj.rotSpeed * dt;
+
+        if (
+          obj.y >= catchTop - 10 &&
+          obj.y <= state.catcher.y + 12 &&
+          obj.x >= catcherLeft &&
+          obj.x <= catcherRight
+        ) {
+          processCatch(obj);
+          state.fallingObjects.splice(i, 1);
+          continue;
+        }
+
+        if (obj.y > logicalHeight + 30) {
+          state.fallingObjects.splice(i, 1);
+        }
+      }
+
+      // Particles
+      for (let i = state.particles.length - 1; i >= 0; i--) {
+        const p = state.particles[i];
+        p.x += p.vx; p.y += p.vy; p.alpha -= p.decay;
+        if (p.alpha <= 0) state.particles.splice(i, 1);
+      }
+
+      // Float Texts
+      for (let i = state.floatTexts.length - 1; i >= 0; i--) {
+        const ft = state.floatTexts[i];
+        ft.y += ft.vy; ft.alpha -= 0.025;
+        if (ft.alpha <= 0) state.floatTexts.splice(i, 1);
+      }
+    }
+
+    function renderGame() {
+      const bgGrad = ctx.createLinearGradient(0, 0, 0, logicalHeight);
+      bgGrad.addColorStop(0, '#090D16');
+      bgGrad.addColorStop(1, '#020617');
+      ctx.fillStyle = bgGrad;
+      ctx.fillRect(0, 0, logicalWidth, logicalHeight);
+
+      // Cyber Grid
+      ctx.strokeStyle = 'rgba(30, 41, 59, 0.4)';
+      ctx.lineWidth = 1;
+      const gridSize = 40;
+      for (let x = 0; x < logicalWidth; x += gridSize) {
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, logicalHeight); ctx.stroke();
+      }
+      for (let y = 0; y < logicalHeight; y += gridSize) {
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(logicalWidth, y); ctx.stroke();
+      }
+
+      // Ground Guide Track
+      ctx.strokeStyle = 'rgba(56, 189, 248, 0.25)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(0, state.catcher.y + 24);
+      ctx.lineTo(logicalWidth, state.catcher.y + 24);
+      ctx.stroke();
+
+      // Falling Items
+      for (const obj of state.fallingObjects) {
+        const def = ITEMS_DEF[obj.typeId];
+        const isThreat = checkThreateningIncoming(obj.typeId);
+        drawMedicalItem(ctx, def, obj.x, obj.y, obj.size, obj.angle, isThreat);
+      }
+
+      // Particles
+      for (const p of state.particles) {
+        ctx.save();
+        ctx.globalAlpha = p.alpha;
+        ctx.fillStyle = p.color;
+        ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
+      }
+
+      // Float Texts
+      for (const ft of state.floatTexts) {
+        ctx.save();
+        ctx.globalAlpha = ft.alpha;
+        ctx.font = 'bold 13px sans-serif';
+        ctx.fillStyle = ft.color;
+        ctx.textAlign = 'center';
+        ctx.shadowColor = 'rgba(0,0,0,0.8)';
+        ctx.shadowBlur = 4;
+        ctx.fillText(ft.text, ft.x, ft.y);
+        ctx.restore();
+      }
+
+      // Draw Human Catcher (藥師小人)
+      drawHumanCatcher(ctx, state.catcher);
+    }
+
+    // --- Game Control Actions ---
+    function startGame() {
+      sound.init();
+      const inputNick = document.getElementById('input-nickname').value.trim();
+      state.playerName = inputNick || '健康守護者';
+      localStorage.setItem('pharma_catch_nickname', state.playerName);
+      document.getElementById('hud-player-name').textContent = state.playerName;
+
+      state.running = true;
+      state.paused = false;
+      state.score = 0;
+      state.strikes = 0;
+      state.startTime = Date.now();
+      state.survivalTime = 0;
+      state.activeDrugs = [];
+      state.fallingObjects = [];
+      state.particles = [];
+      state.floatTexts = [];
+      state.spawnTimer = 0;
+      state.catcher.x = logicalWidth / 2;
+      state.catcher.targetX = logicalWidth / 2;
+
+      resizeCanvas();
+      updateScoreDisplay();
+      updateStrikesDisplay();
+      renderActiveDrugsHUD();
+
+      document.getElementById('start-overlay').classList.add('hidden');
+      document.getElementById('gameover-overlay').classList.add('hidden');
+    }
+
+    function triggerGameOver(title, reasonTitle, medicalDesc) {
+      state.running = false;
+      const overlay = document.getElementById('gameover-overlay');
+      document.getElementById('gameover-title').textContent = title;
+      document.getElementById('gameover-reason-title').textContent = reasonTitle;
+      document.getElementById('gameover-medical-desc').textContent = medicalDesc;
+      document.getElementById('gameover-final-score').textContent = state.score;
+      document.getElementById('gameover-survival-time').textContent = `${state.survivalTime.toFixed(1)} 秒`;
+
+      // Check Top 10 Rank & Cloud Sync
+      const rankTag = document.getElementById('gameover-rank-tag');
+      const rankDesc = document.getElementById('gameover-rank-desc');
+      rankTag.className = 'text-[11px] px-2.5 py-0.5 rounded-full font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/40';
+      rankTag.textContent = '雲端核算中...';
+
+      CloudLeaderboard.submitScore(state.playerName, state.score, state.survivalTime).then(({ isTop10, rank, minScore, isCloud }) => {
+        if (isTop10 && rank > 0) {
+          rankTag.className = 'text-[11px] px-2.5 py-0.5 rounded-full font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40';
+          rankTag.textContent = `第 ${rank} 名 🏆`;
+          rankDesc.innerHTML = `🎉 恭喜！您成功擠進全服前 10 名榮譽排行榜（第 <span class="text-amber-400 font-bold">${rank}</span> 名）！${isCloud ? '<span class="text-emerald-400 font-bold block text-[10px] mt-1">☁️ 成績已即時同步發布至全服雲端數據庫！</span>' : ''}`;
+        } else {
+          rankTag.className = 'text-[11px] px-2.5 py-0.5 rounded-full font-medium bg-slate-800 text-slate-300 border border-slate-700';
+          rankTag.textContent = '未進前10名';
+          rankDesc.innerHTML = `本次分數距離前 10 名入榜門檻 (${minScore}分) 還差 ${Math.max(1, minScore - state.score)} 分，請再接再厲！`;
+        }
+      });
+
+      overlay.classList.remove('hidden');
+    }
+
+    // --- User Input Handling (Touch, Mouse, Keyboard) ---
+    function handlePointerMove(clientX) {
+      const rect = canvas.getBoundingClientRect();
+      const relativeX = clientX - rect.left;
+      const targetLogicalX = (relativeX / rect.width) * logicalWidth;
+      state.catcher.targetX = targetLogicalX;
+    }
+
+    canvas.addEventListener('pointerdown', (e) => {
+      sound.init();
+      handlePointerMove(e.clientX);
+    });
+
+    canvas.addEventListener('pointermove', (e) => {
+      if (e.buttons > 0 || e.pointerType === 'touch') {
+        handlePointerMove(e.clientX);
+      }
+    });
+
+    window.addEventListener('keydown', (e) => {
+      sound.init();
+      const step = 28;
+      if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') {
+        state.catcher.targetX = Math.max(state.catcher.width / 2, state.catcher.targetX - step);
+      } else if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') {
+        state.catcher.targetX = Math.min(logicalWidth - state.catcher.width / 2, state.catcher.targetX + step);
+      } else if (e.key === ' ') {
+        togglePause();
+      }
+    });
+
+    let moveInterval = null;
+    function startContinuousMove(direction) {
+      sound.init();
+      const step = direction * 24;
+      state.catcher.targetX = Math.max(
+        state.catcher.width / 2,
+        Math.min(logicalWidth - state.catcher.width / 2, state.catcher.targetX + step)
+      );
+      if (moveInterval) clearInterval(moveInterval);
+      moveInterval = setInterval(() => {
+        state.catcher.targetX = Math.max(
+          state.catcher.width / 2,
+          Math.min(logicalWidth - state.catcher.width / 2, state.catcher.targetX + step)
+        );
+      }, 50);
+    }
+
+    function stopContinuousMove() {
+      if (moveInterval) {
+        clearInterval(moveInterval);
+        moveInterval = null;
+      }
+    }
+
+    const btnLeft = document.getElementById('btn-move-left');
+    const btnRight = document.getElementById('btn-move-right');
+
+    btnLeft.addEventListener('pointerdown', (e) => { e.preventDefault(); startContinuousMove(-1); });
+    btnLeft.addEventListener('pointerup', stopContinuousMove);
+    btnLeft.addEventListener('pointerleave', stopContinuousMove);
+
+    btnRight.addEventListener('pointerdown', (e) => { e.preventDefault(); startContinuousMove(1); });
+    btnRight.addEventListener('pointerup', stopContinuousMove);
+    btnRight.addEventListener('pointerleave', stopContinuousMove);
+
+    function togglePause() {
+      if (!state.running) return;
+      state.paused = !state.paused;
+      const btn = document.getElementById('btn-pause-game');
+      btn.textContent = state.paused ? '▶ 繼續' : '⏸ 暫停';
+    }
+
+    document.getElementById('btn-pause-game').addEventListener('click', togglePause);
+
+    // --- UI Modals & Buttons ---
+    document.getElementById('btn-start-game').addEventListener('click', startGame);
+    document.getElementById('btn-restart-game').addEventListener('click', startGame);
+
+    const modalHandbook = document.getElementById('modal-handbook');
+    const openHandbook = () => modalHandbook.classList.remove('hidden');
+    const closeHandbook = () => modalHandbook.classList.add('hidden');
+
+    document.getElementById('btn-handbook').addEventListener('click', openHandbook);
+    document.getElementById('btn-gameover-handbook').addEventListener('click', openHandbook);
+    document.getElementById('btn-close-handbook').addEventListener('click', closeHandbook);
+    document.getElementById('btn-close-handbook-footer').addEventListener('click', closeHandbook);
+
+    // Leaderboard Modal
+    const modalLeaderboard = document.getElementById('modal-leaderboard');
+    const panelCloudSettings = document.getElementById('panel-cloud-settings');
+    const inputCloudUrl = document.getElementById('input-cloud-url');
+
+    const openLeaderboard = () => {
+      renderLeaderboardView();
+      modalLeaderboard.classList.remove('hidden');
+    };
+    const closeLeaderboard = () => {
+      modalLeaderboard.classList.add('hidden');
+      panelCloudSettings.classList.add('hidden');
+    };
+
+    document.getElementById('btn-leaderboard').addEventListener('click', openLeaderboard);
+    document.getElementById('btn-gameover-board').addEventListener('click', openLeaderboard);
+    document.getElementById('btn-close-leaderboard').addEventListener('click', closeLeaderboard);
+    document.getElementById('btn-close-leaderboard-footer').addEventListener('click', closeLeaderboard);
+
+    // Refresh Leaderboard
+    document.getElementById('btn-refresh-leaderboard').addEventListener('click', () => {
+      const icon = document.getElementById('lb-refresh-icon');
+      icon.classList.add('animate-spin');
+      renderLeaderboardView().finally(() => {
+        setTimeout(() => icon.classList.remove('animate-spin'), 600);
+      });
+    });
+
+    // Toggle Cloud Settings Panel
+    document.getElementById('btn-toggle-cloud-settings').addEventListener('click', () => {
+      panelCloudSettings.classList.toggle('hidden');
+      if (!panelCloudSettings.classList.contains('hidden')) {
+        inputCloudUrl.value = localStorage.getItem(CloudLeaderboard.storageKey) || '';
+      }
+    });
+
+    // Save Custom Cloud URL
+    document.getElementById('btn-save-cloud-url').addEventListener('click', () => {
+      const url = inputCloudUrl.value.trim();
+      CloudLeaderboard.setEndpoint(url);
+      panelCloudSettings.classList.add('hidden');
+      renderLeaderboardView();
+    });
+
+    // Reset Cloud URL
+    document.getElementById('btn-reset-cloud-url').addEventListener('click', () => {
+      CloudLeaderboard.setEndpoint('');
+      inputCloudUrl.value = '';
+      panelCloudSettings.classList.add('hidden');
+      renderLeaderboardView();
+    });
+
+    // Audio Toggle
+    const btnAudioToggle = document.getElementById('btn-audio-toggle');
+    btnAudioToggle.addEventListener('click', () => {
+      sound.init();
+      const isEnabled = sound.toggle();
+      document.getElementById('audio-icon').textContent = isEnabled ? '🔊' : '🔇';
+      document.getElementById('audio-text').textContent = isEnabled ? '音效 開' : '音效 關';
+    });
+
+    // Init
+    const savedNick = localStorage.getItem('pharma_catch_nickname');
+    if (savedNick) {
+      document.getElementById('input-nickname').value = savedNick;
+      state.playerName = savedNick;
+      document.getElementById('hud-player-name').textContent = savedNick;
+    }
+    resizeCanvas();
+    getLeaderboardData();
+    updateScoreDisplay();
+    requestAnimationFrame(gameLoop);
+  </script>
+</body>
+</html>
