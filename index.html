@@ -4,7 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>藥物接接樂 (Pharma Catch) - SDG 3.5 藥物安全守護戰</title>
-  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>if (!window.tailwind) { document.write('<script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"><\/script>'); }</script>
   <style>
     @keyframes pulse-slow {
       0%, 100% { opacity: 1; transform: scale(1); }
@@ -118,7 +119,7 @@
       </div>
 
       <!-- Canvas Area Container -->
-      <div class="relative w-full max-w-[540px] aspect-[9/14] sm:aspect-[9/13] max-h-[640px] bg-slate-950 border-x border-slate-800 shadow-2xl overflow-hidden group">
+      <div class="relative w-full max-w-[540px] bg-slate-950 border-x border-slate-800 shadow-2xl overflow-hidden group" style="height: min(calc(100vw * 1.1), 60vh)">
         <canvas id="game-canvas" class="w-full h-full block cursor-grab active:cursor-grabbing"></canvas>
 
         <!-- Danger Screen Flash Overlay -->
@@ -569,7 +570,7 @@
        PHARMA CATCH (藥物接接樂) - SDG 3.5 Substance Abuse & Drug Safety Game
        ===================================================================== */
 
-    // --- Audio System (Web Audio API Synthesizer) ---
+    // --- Audio System (Web Audio API Ultra-Fast Synthesizer) ---
     class SoundEngine {
       constructor() {
         this.ctx = null;
@@ -579,7 +580,7 @@
         if (!this.ctx) {
           const AudioContext = window.AudioContext || window.webkitAudioContext;
           if (AudioContext) {
-            this.ctx = new AudioContext();
+            this.ctx = new AudioContext({ latencyHint: 'interactive' });
           }
         }
         if (this.ctx && this.ctx.state === 'suspended') {
@@ -590,93 +591,110 @@
         this.enabled = !this.enabled;
         return this.enabled;
       }
+      // Instant Crisp Ding (維生素/安全品) - 即時零延遲
       playCatchSafe() {
-        if (!this.enabled || !this.ctx) return;
+        if (!this.enabled) return;
+        this.init();
+        if (!this.ctx) return;
         const now = this.ctx.currentTime;
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
         osc.type = 'triangle';
-        osc.frequency.setValueAtTime(523.25, now);
-        osc.frequency.exponentialRampToValueAtTime(659.25, now + 0.08);
-        osc.frequency.exponentialRampToValueAtTime(783.99, now + 0.16);
-        gain.gain.setValueAtTime(0.18, now);
-        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.22);
+        osc.frequency.setValueAtTime(987.77, now);
+        osc.frequency.exponentialRampToValueAtTime(1318.51, now + 0.02);
+        gain.gain.setValueAtTime(0.24, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.07);
         osc.connect(gain);
         gain.connect(this.ctx.destination);
         osc.start(now);
-        osc.stop(now + 0.22);
+        osc.stop(now + 0.07);
       }
+      // Instant Bright Arcade Chime (一般/處方藥物) - 俐落雙音
       playCatchMedicine() {
-        if (!this.enabled || !this.ctx) return;
+        if (!this.enabled) return;
+        this.init();
+        if (!this.ctx) return;
         const now = this.ctx.currentTime;
-        const osc = this.ctx.createOscillator();
-        const gain = this.ctx.createGain();
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(587.33, now);
-        osc.frequency.exponentialRampToValueAtTime(880.00, now + 0.12);
-        gain.gain.setValueAtTime(0.2, now);
-        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.18);
-        osc.connect(gain);
-        gain.connect(this.ctx.destination);
-        osc.start(now);
-        osc.stop(now + 0.18);
-      }
-      playWarning() {
-        if (!this.enabled || !this.ctx) return;
-        const now = this.ctx.currentTime;
-        [0, 0.12].forEach((offset, idx) => {
+        [0, 0.025].forEach((offset, idx) => {
           const osc = this.ctx.createOscillator();
           const gain = this.ctx.createGain();
-          osc.type = 'sawtooth';
-          osc.frequency.setValueAtTime(idx === 0 ? 350 : 280, now + offset);
+          osc.type = 'sine';
+          const freq = idx === 0 ? 880 : 1320;
+          osc.frequency.setValueAtTime(freq, now + offset);
+          osc.frequency.exponentialRampToValueAtTime(freq * 1.25, now + offset + 0.02);
           gain.gain.setValueAtTime(0.22, now + offset);
-          gain.gain.exponentialRampToValueAtTime(0.01, now + offset + 0.1);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + offset + 0.06);
           osc.connect(gain);
           gain.connect(this.ctx.destination);
           osc.start(now + offset);
-          osc.stop(now + offset + 0.1);
+          osc.stop(now + offset + 0.06);
         });
       }
+      // Immediate Sharp Alert Beep (注意成分失誤警告)
+      playWarning() {
+        if (!this.enabled) return;
+        this.init();
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        [0, 0.05].forEach((offset, idx) => {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(idx === 0 ? 440 : 330, now + offset);
+          gain.gain.setValueAtTime(0.25, now + offset);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + offset + 0.045);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(now + offset);
+          osc.stop(now + offset + 0.045);
+        });
+      }
+      // High-Risk Fatal Interaction Crash
       playHighRiskCrash() {
-        if (!this.enabled || !this.ctx) return;
+        if (!this.enabled) return;
+        this.init();
+        if (!this.ctx) return;
         const now = this.ctx.currentTime;
         const oscLow = this.ctx.createOscillator();
         const gainLow = this.ctx.createGain();
         oscLow.type = 'sawtooth';
-        oscLow.frequency.setValueAtTime(110, now);
-        oscLow.frequency.linearRampToValueAtTime(45, now + 0.4);
-        gainLow.gain.setValueAtTime(0.35, now);
-        gainLow.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+        oscLow.frequency.setValueAtTime(150, now);
+        oscLow.frequency.linearRampToValueAtTime(35, now + 0.35);
+        gainLow.gain.setValueAtTime(0.38, now);
+        gainLow.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
         oscLow.connect(gainLow);
         gainLow.connect(this.ctx.destination);
         oscLow.start(now);
-        oscLow.stop(now + 0.5);
+        oscLow.stop(now + 0.4);
 
         const oscBeep = this.ctx.createOscillator();
         const gainBeep = this.ctx.createGain();
-        oscBeep.type = 'sine';
-        oscBeep.frequency.setValueAtTime(880, now + 0.15);
-        gainBeep.gain.setValueAtTime(0.25, now + 0.15);
-        gainBeep.gain.linearRampToValueAtTime(0.01, now + 0.95);
+        oscBeep.type = 'square';
+        oscBeep.frequency.setValueAtTime(920, now + 0.05);
+        gainBeep.gain.setValueAtTime(0.28, now + 0.05);
+        gainBeep.gain.linearRampToValueAtTime(0.001, now + 0.6);
         oscBeep.connect(gainBeep);
         gainBeep.connect(this.ctx.destination);
-        oscBeep.start(now + 0.15);
-        oscBeep.stop(now + 0.95);
+        oscBeep.start(now + 0.05);
+        oscBeep.stop(now + 0.6);
       }
+      // Illicit Drug Immediate Siren
       playIllicitDrugCrash() {
-        if (!this.enabled || !this.ctx) return;
+        if (!this.enabled) return;
+        this.init();
+        if (!this.ctx) return;
         const now = this.ctx.currentTime;
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
         osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(440, now);
-        osc.frequency.exponentialRampToValueAtTime(55, now + 0.6);
-        gain.gain.setValueAtTime(0.3, now);
-        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.65);
+        osc.frequency.setValueAtTime(580, now);
+        osc.frequency.exponentialRampToValueAtTime(40, now + 0.45);
+        gain.gain.setValueAtTime(0.35, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
         osc.connect(gain);
         gain.connect(this.ctx.destination);
         osc.start(now);
-        osc.stop(now + 0.65);
+        osc.stop(now + 0.5);
       }
     }
 
@@ -892,9 +910,9 @@
       floatTexts: [],
       catcher: {
         x: 200,
-        y: 520,
-        width: 72,
-        height: 54,
+        y: 410,
+        width: 86,
+        height: 68,
         targetX: 200,
         walkCycle: 0,
         face: 'smile'
@@ -906,20 +924,27 @@
 
     // --- Screen Size & Coordinate Mapping ---
     let logicalWidth = 400;
-    let logicalHeight = 580;
+    let logicalHeight = 560; // updated dynamically in resizeCanvas
     let scale = 1;
 
     function resizeCanvas() {
       const rect = canvas.getBoundingClientRect();
       const dpr = window.devicePixelRatio || 1;
       const w = rect.width > 0 ? rect.width : (canvas.parentElement && canvas.parentElement.clientWidth > 0 ? canvas.parentElement.clientWidth : 400);
-      const h = rect.height > 0 ? rect.height : (canvas.parentElement && canvas.parentElement.clientHeight > 0 ? canvas.parentElement.clientHeight : 580);
+      const h = rect.height > 0 ? rect.height : (canvas.parentElement && canvas.parentElement.clientHeight > 0 ? canvas.parentElement.clientHeight : 560);
       canvas.width = w * dpr;
       canvas.height = h * dpr;
+
+      // Dynamically derive logicalHeight from real canvas proportions
+      // so the coordinate system always matches the visible area
+      const aspectRatio = h / (w || 1);
+      logicalHeight = Math.round(logicalWidth * aspectRatio);
+
       scale = (canvas.width / logicalWidth) || 1;
       ctx.setTransform(scale, 0, 0, scale, 0, 0);
 
-      state.catcher.y = logicalHeight - 56;
+      // Always position catcher at 78% down logical height — visible on any device
+      state.catcher.y = Math.round(logicalHeight * 0.78);
       if (!state.running) {
         state.catcher.x = logicalWidth / 2;
         state.catcher.targetX = logicalWidth / 2;
@@ -1623,6 +1648,11 @@
 
       document.getElementById('start-overlay').classList.add('hidden');
       document.getElementById('gameover-overlay').classList.add('hidden');
+
+      if (!state.loopActive) {
+        state.loopActive = true;
+        requestAnimationFrame(gameLoop);
+      }
     }
 
     function triggerGameOver(title, reasonTitle, medicalDesc) {
@@ -1812,8 +1842,8 @@
       document.getElementById('hud-player-name').textContent = savedNick;
     }
     resizeCanvas();
-    getLeaderboardData();
     updateScoreDisplay();
+    state.loopActive = true;
     requestAnimationFrame(gameLoop);
   </script>
 </body>
